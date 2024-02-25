@@ -10,3 +10,4 @@ class ExpenseSplitType(str, Enum):
     EQUAL = "EQUAL"
     EXACT = "EXACT"
     PERCENT = "PERCENT"
+    WEIGHT = "WEIGHT"

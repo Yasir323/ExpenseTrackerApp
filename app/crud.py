@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from starlette import status
@@ -7,39 +9,88 @@ from app.models import DbExpense
 from app.schema import AddExpensePayload
 
 
-def get_participants(payload: AddExpensePayload):
+def split_amount(total_amount: float, num_people: int) -> List[float]:
+    equal_share = total_amount / num_people
+    remainder = total_amount - (equal_share * num_people)
+
+    # Distribute equal share among all participants
+    amounts = [round(equal_share, 2) for _ in range(num_people)]
+
+    # Distribute remainder fairly among participants
+    for i in range(int(remainder * 100)):  # Multiply by 100 to avoid floating-point precision issues
+        amounts[i % num_people] += 0.01
+
+    return amounts
+
+
+def get_participants_by_splitting_amount_equally(total_amount, participants) -> List[dict]:
     db_participants = []
+    amounts = split_amount(total_amount=total_amount, num_people=len(participants))
+    for index, participant in enumerate(participants):
+        db_participant = {
+            "user_id": participant.user_id,
+            "amount": amounts[index]
+        }
+        db_participants.append(db_participant)
+    return db_participants
+
+
+def get_participants_by_splitting_amount_exactly(total_amount, participants) -> List[dict]:
+    spent = total_amount
+    db_participants = []
+    for participant in participants:
+        spent -= participant.contribution
+        db_participant = {
+            "user_id": participant.user_id,
+            "amount": participant.contribution
+        }
+        db_participants.append(db_participant)
+    if spent != 0:
+        raise ValueError
+    return db_participants
+
+
+def get_participants_by_splitting_amount_by_percentage(total_amount, participants) -> List[dict]:
+    total_perc = 0
+    db_participants = []
+    for participant in participants:
+        total_perc += participant.contribution
+        amount_owed = total_amount * participant.contribution / 100
+        db_participant = {
+            "user_id": participant.user_id,
+            "amount": amount_owed
+        }
+        db_participants.append(db_participant)
+    if total_perc > 100:
+        raise ValueError
+    return db_participants
+
+
+def get_participants_by_splitting_amount_by_weight(total_amount, participants) -> List[dict]:
+    total_weight = sum([p.contribution for p in participants])
+    db_participants = []
+    for participant in participants:
+        amount_owed = total_amount * participant.contribution / total_weight
+        db_participant = {
+            "user_id": participant.user_id,
+            "amount": amount_owed
+        }
+        db_participants.append(db_participant)
+    return db_participants
+
+
+def get_participants(payload: AddExpensePayload):
     match payload.expense_type.upper():
         case ExpenseSplitType.EQUAL:
-            for participant in payload.participants:
-                db_participant = {
-                    "user_id": participant.user_id,
-                    "amount": payload.amount / len(payload.participants)
-                }
-                db_participants.append(db_participant)
+            db_participants = get_participants_by_splitting_amount_equally(payload.amount, payload.participants)
         case ExpenseSplitType.EXACT:
-            spent = payload.amount
-            for participant in payload.participants:
-                spent -= participant.contribution
-                db_participant = {
-                    "user_id": participant.user_id,
-                    "amount": participant.contribution
-                }
-                db_participants.append(db_participant)
-            if spent != 0:
-                raise ValueError
+            db_participants = get_participants_by_splitting_amount_exactly(payload.amount, payload.participants)
         case ExpenseSplitType.PERCENT:
-            total_perc = 0
-            for participant in payload.participants:
-                total_perc += participant.contribution
-                amount_owed = payload.amount * participant.contribution / 100
-                db_participant = {
-                    "user_id": participant.user_id,
-                    "amount": amount_owed
-                }
-                db_participants.append(db_participant)
-            if total_perc > 100:
-                raise ValueError
+            db_participants = get_participants_by_splitting_amount_by_percentage(payload.amount, payload.participants)
+        case ExpenseSplitType.WEIGHT:
+            db_participants = get_participants_by_splitting_amount_by_weight(payload.amount, payload.participants)
+        case _:
+            db_participants = []
     return db_participants
 
 
