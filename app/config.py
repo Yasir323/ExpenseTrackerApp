@@ -1,3 +1,4 @@
+import uuid
 from enum import unique, Enum
 
 
@@ -11,3 +12,7 @@ class ExpenseSplitType(str, Enum):
     EXACT = "EXACT"
     PERCENT = "PERCENT"
     WEIGHT = "WEIGHT"
+
+
+def id_factory():
+    return str(uuid.uuid4())

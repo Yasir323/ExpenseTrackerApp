@@ -3,12 +3,12 @@ from typing import List
 import pymongo
 from fastapi import Depends, APIRouter, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from pydantic import UUID4
 from starlette import status
 
+from app.crud import get_user_balance
 from app.database import get_db
 from app.models import DbUser
-from app.schema import GetUserPayload, UserResponse, BalanceResponse
+from app.schema import UserResponse, BalanceResponse
 
 user_router = APIRouter(prefix="/users")
 
@@ -25,7 +25,7 @@ async def get_users(db: AsyncIOMotorDatabase = Depends(get_db)):
 
 
 @user_router.get("/{user_id}", response_model=UserResponse)
-async def get_user(user_id: UUID4, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def get_user(user_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
     try:
         query = {"_id": user_id}
         projection = {"_id": 0}
@@ -38,7 +38,7 @@ async def get_user(user_id: UUID4, db: AsyncIOMotorDatabase = Depends(get_db)):
 
 
 @user_router.post("/")
-async def add_user(payload: GetUserPayload, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def add_user(payload: UserResponse, db: AsyncIOMotorDatabase = Depends(get_db)):
     try:
         user = DbUser(**payload.dict())
         print(user.id)
@@ -56,12 +56,7 @@ async def add_user(payload: GetUserPayload, db: AsyncIOMotorDatabase = Depends(g
 @user_router.get("/balance/{user_id}", response_model=List[BalanceResponse])
 async def get_balances(user_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
     try:
-        pipeline = [
-            {"$match": {"payer_id": user_id}},
-            {"$group": {"_id": "$payee_id", "amount_owed": {"$sum": "$amount"}}},
-            {"$sort": {"amount_owed": 1}}
-        ]
-        result = [txn async for txn in db["transactions"].aggregate(pipeline)]
+        result = await get_user_balance(db, user_id)
         if not result:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     except:

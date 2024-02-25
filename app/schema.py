@@ -1,10 +1,9 @@
 import datetime
-import uuid
 from typing import Optional, TypeVar, List
 
 from pydantic import BaseModel, Field, UUID4, EmailStr
 
-from app.config import ExpenseSplitType
+from app.config import ExpenseSplitType, id_factory
 
 Number = TypeVar("Number", float, int)
 
@@ -24,22 +23,16 @@ class AddExpensePayload(BaseModel):
 
 
 class User(BaseModel):
-    user_id: UUID4
-    amount: str
+    user_id: str
+    amount: Number
 
 
 class ExpenseResponse(BaseModel):
-    amount: str
+    amount: Number
     date: datetime.datetime
     name: Optional[str]
     notes: Optional[str]
     participants: List[User]
-
-
-class GetUserPayload(BaseModel):
-    name: str = Field(max_length=128)
-    email: EmailStr = Field(max_length=256)
-    phone: int
 
 
 class UserResponse(BaseModel):
@@ -49,5 +42,5 @@ class UserResponse(BaseModel):
 
 
 class BalanceResponse(BaseModel):
-    id: UUID4 = Field(default_factory=uuid.uuid4, alias="_id")
+    user: str
     amount_owed: Number

@@ -1,21 +1,21 @@
 from typing import List
 
-from fastapi import HTTPException, APIRouter, Depends, UploadFile
+from fastapi import HTTPException, APIRouter, Depends, UploadFile, BackgroundTasks
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from pydantic import UUID4
 from starlette import status
 
 from app.config import float_scale
-from app.crud import add_expense_to_db
+from app.crud import add_expense_to_db, expense_adapter
 from app.database import get_db
 from app.file_io import store_files
+from app.notification import send_expense_notification
 from app.schema import ExpenseResponse, AddExpensePayload
 
 expense_router = APIRouter(prefix="/expenses")
 
 
 @expense_router.get("/{expense_id}", response_model=ExpenseResponse)
-async def get_expense(expense_id: UUID4, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def get_expense(expense_id: str, db: AsyncIOMotorDatabase = Depends(get_db)):
     try:
         # Retrieve expense by ID
         query = {"_id": expense_id}
@@ -27,7 +27,7 @@ async def get_expense(expense_id: UUID4, db: AsyncIOMotorDatabase = Depends(get_
             "notes": 1,
             "participants": 1
         }
-        expense = await db["expenses"].get_one(query, projection)
+        expense = await db["expenses"].find_one(query, projection)
         if expense is None:
             raise HTTPException(status_code=404, detail="Expense not found")
         return expense
@@ -37,6 +37,7 @@ async def get_expense(expense_id: UUID4, db: AsyncIOMotorDatabase = Depends(get_
 
 @expense_router.post("/")
 async def add_expense(payload: AddExpensePayload,
+                      background_tasks: BackgroundTasks,
                       db: AsyncIOMotorDatabase = Depends(get_db)):
     # out_file_paths = None
     # if images:
@@ -50,7 +51,9 @@ async def add_expense(payload: AddExpensePayload,
         notes=payload.notes,
         participants=payload.participants
     )
-    expense_id = await add_expense_to_db(db, payload)
+    expenses = await expense_adapter(payload)
+    background_tasks.add_task(send_expense_notification, expenses)
+    expense_id = await add_expense_to_db(db, expenses)
     return {"expenseId": expense_id, "message": "Expense added successfully"}
 
 
