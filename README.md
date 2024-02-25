@@ -1,6 +1,6 @@
 # Expense Tracker App
 
-This is the documentation for my Expense Tracker App.
+This is the documentation for my Expense Tracker App. The Database contains 3 collections: users, expenses and transactions. To obtain balances of each user the transactions database has been created which stores transaction between each user when an expense is created. The API endpoints and documentation is as described below.
 
 ## API Documentation
 
