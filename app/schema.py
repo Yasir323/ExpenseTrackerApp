@@ -44,3 +44,9 @@ class UserResponse(BaseModel):
 class BalanceResponse(BaseModel):
     user: str
     amount_owed: Number
+
+
+class Expense(BaseModel):
+    borrower: str
+    lender: str
+    amount: Number

@@ -9,7 +9,8 @@ from app.crud import add_expense_to_db, expense_adapter
 from app.database import get_db
 from app.file_io import store_files
 from app.notification import send_expense_notification
-from app.schema import ExpenseResponse, AddExpensePayload
+from app.schema import ExpenseResponse, AddExpensePayload, Expense
+from app.simplify_expenses import simplify_balances
 
 expense_router = APIRouter(prefix="/expenses")
 
@@ -87,6 +88,22 @@ async def get_expenses_of_user(user_id: str, db: AsyncIOMotorDatabase = Depends(
             )
 
         return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch expense: {str(e)}"
+        )
+
+
+@expense_router.get("/simplify")
+async def simplify_expense(expenses: List[Expense]):
+    try:
+        simplified_balances = simplify_balances([(expense.borrower, expense.lender, expense.amount)
+                                                 for expense in expenses])
+        if not simplified_balances:
+            return {"Simplified Expense": "No transactions needed."}
+        else:
+            return {"Simplified Expense": simplified_balances}
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
