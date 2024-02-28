@@ -103,7 +103,7 @@ async def simplify_expense(expenses: List[Expense]):
         if not simplified_balances:
             return {"Simplified Expense": "No transactions needed."}
         else:
-            return {"Simplified Expense": simplified_balances}
+            return {"Simplified Expense": " ".join(simplified_balances)}
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -37,12 +37,13 @@ def simplify_balances(expense: list):
             amount_borrowed = -amount_borrowed
             amount_transfered = min(amount_borrowed, amount_lent)
             if amount_transfered > 0:
-                simplified_expenses.append(f"{borrower} sends {amount_transfered} to {lender}\n")
+                simplified_expenses.append(f"{borrower} sends {amount_transfered} to {lender}.")
                 updated_amount_borrowed = amount_borrowed - amount_transfered
                 updated_amount_lent = amount_lent - amount_transfered
                 amount_lent = updated_amount_lent
                 if updated_amount_borrowed > 0:
                     heapq.heappush(sorted_borrowers, (-updated_amount_borrowed, borrower))
+    return simplified_expenses
 
 
 if __name__ == "__main__":
