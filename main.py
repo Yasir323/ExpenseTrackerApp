@@ -15,7 +15,7 @@ load_dotenv()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Load the ML model
+    # Load the db
     db = DatabaseConnectionManager().get_db
     users_col = db.get_collection("users")
     await users_col.create_index({"name": 1}, unique=True)
@@ -28,7 +28,7 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Clean up the ML models and release the resources
+    # Clean up the connections and release the resources
     DatabaseConnectionManager().close_conn()
 
 
